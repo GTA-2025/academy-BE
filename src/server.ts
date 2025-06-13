@@ -2,13 +2,14 @@ import express, { Application, Request, Response, NextFunction } from "express";
 import "dotenv/config";
 import { connectDB } from "./configs/db";
 import cors from "cors";
-import { logger } from "./configs/logger";
+import { logger } from "./utils/logger";
+import helmet from "helmet";
+import authRoutes from "./routes/auth.route";
 
 const app: Application = express();
 const PORT: number = +(process.env.PORT ?? 4040);
 
 // Middleware
-
 app.use(express.json());
 app.use(express.urlencoded({ limit: 500 }));
 app.use(
@@ -20,6 +21,8 @@ app.use(
     credentials: true,
   })
 );
+
+app.use(helmet());
 // HTTP request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
   logger.http(`[-> ${req.method} ${req.url} - IP: ${req.ip}`);
@@ -32,9 +35,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Routes
 app.get("/api/gta/v1/health", (req: Request, res: Response) => {
   res.status(200).json({ message: " everywhere good" });
 });
+app.use("/api/gta/v1/auth", authRoutes);
 
 logger;
 connectDB();

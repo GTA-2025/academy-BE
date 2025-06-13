@@ -47,26 +47,23 @@ if (!existsSync(logDir)) {
   mkdirSync(logDir);
 }
 
-const httpFilter = winston.format((info, opts) => {
-  if (info.level === "http") {
-    return false;
-  }
-  return true;
-});
 
 const fileFormat = winston.format.combine(
   winston.format.timestamp({
     format: "YYYY-MM-DD HH:mm:ss",
   }),
+
   winston.format.errors({
     stack: true,
   }),
+
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
     const metaString =
       Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
     return `${timestamp} [${level}]: ${message}${metaString}`;
   })
 );
+
 
 const logger = createLogger({
   levels: levels,

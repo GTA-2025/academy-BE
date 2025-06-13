@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import "dotenv/config";
-import { logger } from "./logger";
+import { logger } from "../utils/logger";
 
 export async function connectDB() {
   try {
