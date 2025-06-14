@@ -1,5 +1,6 @@
 import { Schema, model } from "mongoose";
 import { UserRole } from "../types/user.types";
+import { level } from "winston";
 
 export interface UserI {
   first_name: string;
@@ -24,7 +25,23 @@ const userSchema = new Schema(
       enum: Object.values(UserRole),
       default: UserRole.STUDENT,
     },
+    profile: {
+      bio: { type: String, default: "" },
+      avatar: { type: String, default: "" },
+      level: {
+        type: String,
+        enum: ["beginner", "intermediate", "advanced"],
+        default: "beginner",
+      },
+    },
+    // Additional fields for user verification and password reset
+    is_verified: { type: Boolean, default: false },
+    verify_email_token: String,
+    verify_email_token_expires: Date,
+    reset_password_token: String,
+    reset_password_token_expires: Date,
   },
+
   {
     timestamps: true,
     toJSON: { virtuals: true },

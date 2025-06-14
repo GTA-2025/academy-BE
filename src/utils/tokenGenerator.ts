@@ -27,6 +27,13 @@ class Token {
 
     return jwt.verify(this.payload as unknown as string, this.secret);
   }
+
+  static verifyToken(secret: string, token: string) {
+    if (!secret) {
+      throw new Error("Secret key is required for token verification");
+    }
+    return jwt.verify(token, secret);
+  }
 }
 
 export const generateToken = (
@@ -37,10 +44,11 @@ export const generateToken = (
   const token = new Token(secret, payload, expiresIn);
   return token.generate();
 };
+
 export const verifyToken = (secret: string, token: string): object | string => {
-  const tokenInstance = new Token(secret, {}, "");
-  return tokenInstance.verify();
+  return Token.verifyToken(secret, token);
 };
+
 export const decodeToken = (token: string): object | null => {
   try {
     return jwt.decode(token) as object;

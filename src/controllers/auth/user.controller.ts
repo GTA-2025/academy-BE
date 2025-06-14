@@ -13,6 +13,8 @@ import { generateToken } from "../../utils/tokenGenerator";
 import "dotenv/config";
 import { logger } from "../../utils/logger";
 import { toString } from "lodash";
+import { mailOption, transporter } from "../../utils/mailer";
+import { emailTemplates } from "../../constants/emailTemplates";
 
 const secret = toString(process.env.JWT_SECRET);
 if (!secret) {
@@ -77,6 +79,9 @@ export const createUser = async (req: Request, res: Response) => {
      * This will be saved to the database
      */
     const hashedPassword = await argon2.hash(password);
+
+    // verification code generation
+    const verificationCode = Math.floor(100000 + Math.random() * 900000);
     const user = new User({
       first_name,
       last_name,
@@ -84,6 +89,8 @@ export const createUser = async (req: Request, res: Response) => {
       country,
       email,
       password: hashedPassword,
+      verify_email_token: verificationCode.toString(),
+      verify_email_token_expires: new Date(Date.now() + 5 * 60 * 1000), // Token valid for 5 minutes
     });
 
     // Save the user to the database
@@ -93,6 +100,21 @@ export const createUser = async (req: Request, res: Response) => {
      * This token can be used for authentication in future requests
      */
     const token = generateToken(secret, { userId: user._id }, expiresIn);
+
+    /**
+     * send verification email to user
+     * This is a placeholder for sending the verification email
+     */
+    transporter.sendMail(
+      mailOption(
+        user.email,
+        "Confirm your Email",
+        emailTemplates.confirmEmail.replace(
+          "{{code}}",
+          verificationCode.toString()
+        )
+      )
+    );
 
     // Set token as HTTP-only cookie
     res.cookie("token", token, {
@@ -193,6 +215,145 @@ export const loginUser = async (req: Request, res: Response) => {
     );
   } catch (error) {
     logger.error("Error in loginUser:", error);
+    return errorApiResponse(
+      res,
+      "Internal Server Error",
+      error instanceof Error ? error.message : "Unknown error occurred",
+      ApiResponseCode.INTERNAL_ERROR,
+      "error"
+    );
+  }
+};
+
+/**
+ * Controller function for confirming a user's email
+ * This function verifies the user's email using a verification code
+ */
+export const confirmEmail = async (req: Request, res: Response) => {
+  try {
+    // Check for validation errors
+
+    const { verificationCode } = req.body;
+
+    // Find the user by email
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return errorApiResponse(
+        res,
+        "User not found",
+        "User not found",
+        ApiResponseCode.NOT_FOUND,
+        "error"
+      );
+    }
+
+    // Check if the verification code matches and is still valid
+    if (
+      user.verify_email_token !== verificationCode ||
+      !user.verify_email_token_expires ||
+      new Date() > user.verify_email_token_expires
+    ) {
+      return errorApiResponse(
+        res,
+        "Invalid or expired verification code",
+        errMessage.UNAUTHORIZED,
+        ApiResponseCode.UNAUTHORIZED,
+        "error"
+      );
+    }
+
+    // Update the user's verification status
+    user.is_verified = true;
+    user.verify_email_token = undefined;
+    user.verify_email_token_expires = undefined;
+    await user.save();
+
+    /**
+     * send welcoming email to user
+     */
+    transporter.sendMail(
+      mailOption(user.email, "Welcome! to GTA", emailTemplates.welcomeEmail)
+    );
+
+    // Return success response
+    return successApiResponse(
+      res,
+      "Email confirmed successfully",
+      { ...user.toObject(), password: undefined },
+      ApiResponseCode.OK,
+      "info"
+    );
+  } catch (error) {
+    logger.error("Error in confirmEmail:", error);
+    return errorApiResponse(
+      res,
+      "Internal Server Error",
+      error instanceof Error ? error.message : "Unknown error occurred",
+      ApiResponseCode.INTERNAL_ERROR,
+      "error"
+    );
+  }
+};
+
+/**
+ * Controller function for regenerating email confirmation code
+ * This function generates a new verification code and sends it to the user's email
+ */
+export const regenerateEmailCode = async (req: Request, res: Response) => {
+  try {
+    // Find the user by ID
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return errorApiResponse(
+        res,
+        "User not found",
+        "User not found",
+        ApiResponseCode.NOT_FOUND,
+        "error"
+      );
+    }
+
+    // Check if user is already verified
+    if (user.is_verified) {
+      return errorApiResponse(
+        res,
+        "Email already verified",
+        "Email is already verified",
+        ApiResponseCode.BAD_REQUEST,
+        "error"
+      );
+    }
+
+    // Generate new verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000);
+
+    // Update user's verification token and expiry
+    user.verify_email_token = verificationCode.toString();
+    user.verify_email_token_expires = new Date(Date.now() + 5 * 60 * 1000); // Token valid for 5 minutes
+    await user.save();
+
+    // Send new verification email
+    transporter.sendMail(
+      mailOption(
+        user.email,
+        "Confirm your Email",
+        emailTemplates.confirmEmail.replace(
+          "{{code}}",
+          verificationCode.toString()
+        )
+      )
+    );
+
+    // Return success response
+    return successApiResponse(
+      res,
+      "New verification code sent successfully",
+      { email: user.email },
+      ApiResponseCode.OK,
+      "info"
+    );
+  } catch (error) {
+    logger.error("Error in regenerateEmailCode:", error);
     return errorApiResponse(
       res,
       "Internal Server Error",
