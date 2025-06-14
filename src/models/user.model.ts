@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { UserRole } from "../types/user.types";
 
 export interface UserI {
   first_name: string;
@@ -7,7 +8,7 @@ export interface UserI {
   country: string;
   email: string;
   password: string;
-  role?: "admin" | "user";
+  role?: UserRole;
   full_name?: string; // Virtual field
 }
 const userSchema = new Schema(
@@ -18,7 +19,11 @@ const userSchema = new Schema(
     country: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ["admin", "user"], default: "user" },
+    role: {
+      type: String,
+      enum: Object.values(UserRole),
+      default: UserRole.STUDENT,
+    },
   },
   {
     timestamps: true,

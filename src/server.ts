@@ -5,6 +5,7 @@ import cors from "cors";
 import { logger } from "./utils/logger";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.route";
+import cookieParser from "cookie-parser";
 
 const app: Application = express();
 const PORT: number = +(process.env.PORT ?? 4040);
@@ -12,6 +13,7 @@ const PORT: number = +(process.env.PORT ?? 4040);
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ limit: 500 }));
+app.use(cookieParser());
 app.use(
   cors({
     origin: "*",

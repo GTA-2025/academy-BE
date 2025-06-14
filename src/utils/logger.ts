@@ -47,7 +47,6 @@ if (!existsSync(logDir)) {
   mkdirSync(logDir);
 }
 
-
 const fileFormat = winston.format.combine(
   winston.format.timestamp({
     format: "YYYY-MM-DD HH:mm:ss",
@@ -64,7 +63,6 @@ const fileFormat = winston.format.combine(
   })
 );
 
-
 const logger = createLogger({
   levels: levels,
   level: "debug", // Changed from http to debug to capture all levels
@@ -80,17 +78,7 @@ const logger = createLogger({
   transports: [
     new transports.Console({
       level: "debug",
-      format: combine(
-        format.colorize(),
-        format.timestamp({
-          format: "YYYY-MM-DD HH:mm:ss",
-        }),
-        format.printf(({ timestamp, level, message, ...meta }) => {
-          const metaString =
-            Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
-          return `${timestamp} [${level}]: ${message}${metaString}`;
-        })
-      ),
+      format: combine(format.colorize({ all: true }), fileFormat),
     }),
 
     new transports.File({
