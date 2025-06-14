@@ -124,3 +124,132 @@ export const createUser = async (req: Request, res: Response) => {
     );
   }
 };
+
+/**
+ * Controller function to login a user
+ * This function handles user authentication by verifying the provided credentials
+ * It generates a token upon successful login and sets it as an HTTP-only cookie
+ * @param req - Express Request object
+ * @param res - Express Response object
+ */
+export const loginUser = async (req: Request, res: Response) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorApiResponse(
+        res,
+        "Validation Error",
+        errMessage.VALIDATION_ERROR,
+        ApiResponseCode.BAD_REQUEST,
+        "error"
+      );
+    }
+
+    const { email, password } = req.body;
+
+    // Find the user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return errorApiResponse(
+        res,
+        "Invalid email or password",
+        errMessage.UNAUTHORIZED,
+        ApiResponseCode.UNAUTHORIZED,
+        "error"
+      );
+    }
+
+    // Verify the password
+    const isPasswordValid = await argon2.verify(user.password, password);
+    if (!isPasswordValid) {
+      return errorApiResponse(
+        res,
+        "Invalid email or password",
+        errMessage.UNAUTHORIZED,
+        ApiResponseCode.UNAUTHORIZED,
+        "error"
+      );
+    }
+
+    // Generate a token for the user
+    const token = generateToken(secret, { userId: user._id }, expiresIn);
+
+    // Set token as HTTP-only cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+      sameSite: "strict",
+      maxAge: 3600000, // 1 hour in milliseconds
+    });
+
+    // Return success response with user data (excluding password)
+    return successApiResponse(
+      res,
+      "Login successful",
+      { ...user.toObject(), password: undefined },
+      ApiResponseCode.OK,
+      "info"
+    );
+  } catch (error) {
+    logger.error("Error in loginUser:", error);
+    return errorApiResponse(
+      res,
+      "Internal Server Error",
+      error instanceof Error ? error.message : "Unknown error occurred",
+      ApiResponseCode.INTERNAL_ERROR,
+      "error"
+    );
+  }
+};
+
+/**
+ * Controller function to get the current user's information
+ * This function retrieves the user data from the database using the user ID from the request
+ * @param req - Express Request object
+ * @param res - Express Response object
+ */
+export const getCurrentUser = async (req: Request, res: Response) => {
+  try {
+    // Check if the user is authenticated
+    if (!req.user || !req.user.userId) {
+      return errorApiResponse(
+        res,
+        "Unauthorized access",
+        errMessage.UNAUTHORIZED,
+        ApiResponseCode.UNAUTHORIZED,
+        "error"
+      );
+    }
+
+    // Find the user by ID
+    const user = await User.findById(req.user.userId).select("-password");
+    if (!user) {
+      return errorApiResponse(
+        res,
+        "User not found",
+        "User not found",
+        ApiResponseCode.NOT_FOUND,
+        "error"
+      );
+    }
+
+    // Return the user data
+    return successApiResponse(
+      res,
+      "User retrieved successfully",
+      user,
+      ApiResponseCode.OK,
+      "info"
+    );
+  } catch (error) {
+    logger.error("Error in getCurrentUser:", error);
+    return errorApiResponse(
+      res,
+      "Internal Server Error",
+      error instanceof Error ? error.message : "Unknown error occurred",
+      ApiResponseCode.INTERNAL_ERROR,
+      "error"
+    );
+  }
+};

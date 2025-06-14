@@ -1,5 +1,6 @@
 import { body } from "express-validator";
-export const validateUserInput = [
+
+export const validateSignInInput = [
   body("email")
     .isEmail()
     .withMessage("Please provide a valid email address")
@@ -15,4 +16,12 @@ export const validateUserInput = [
   body("last_name").trim().notEmpty().withMessage("Last name is required"),
   body("phone").trim().notEmpty().withMessage("Phone number is required"),
   body("country").trim().notEmpty().withMessage("Country is required"),
+];
+
+export const validateLoginInput = [
+  body("email")
+    .isEmail()
+    .withMessage("Please provide a valid email address")
+    .normalizeEmail(),
+  body("password").notEmpty().withMessage("Password is required"),
 ];
