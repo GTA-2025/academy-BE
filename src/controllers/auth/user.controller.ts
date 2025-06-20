@@ -44,8 +44,15 @@ export const createUser = async (req: Request, res: Response) => {
       );
     }
 
-    const { first_name, last_name, phone, country, email, password }: UserI =
-      req.body;
+    const {
+      first_name,
+      last_name,
+      phone,
+      country,
+      email,
+      password,
+      agree_terms,
+    }: UserI = req.body;
 
     if (!email || !password) {
       return errorApiResponse(
@@ -89,6 +96,7 @@ export const createUser = async (req: Request, res: Response) => {
       country,
       email,
       password: hashedPassword,
+      agree_terms: agree_terms || true,
       verify_email_token: verificationCode.toString(),
       verify_email_token_expires: new Date(Date.now() + 5 * 60 * 1000), // Token valid for 5 minutes
     });
@@ -131,7 +139,7 @@ export const createUser = async (req: Request, res: Response) => {
     return successApiResponse(
       res,
       "User created successfully",
-      { ...user.toObject(), password: undefined },
+      { ...user.toObject(), password: undefined, token: token },
       ApiResponseCode.CREATED,
       "info"
     );
@@ -209,7 +217,7 @@ export const loginUser = async (req: Request, res: Response) => {
     return successApiResponse(
       res,
       "Login successful",
-      { ...user.toObject(), password: undefined },
+      { ...user.toObject(), password: undefined, token },
       ApiResponseCode.OK,
       "info"
     );
@@ -285,6 +293,139 @@ export const confirmEmail = async (req: Request, res: Response) => {
     );
   } catch (error) {
     logger.error("Error in confirmEmail:", error);
+    return errorApiResponse(
+      res,
+      "Internal Server Error",
+      error instanceof Error ? error.message : "Unknown error occurred",
+      ApiResponseCode.INTERNAL_ERROR,
+      "error"
+    );
+  }
+};
+
+/**
+ * Controller function for requesting password reset
+ * Sends an email with a reset password link
+ */
+export const requestPasswordReset = async (req: Request, res: Response) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorApiResponse(
+        res,
+        "Validation Error",
+        errMessage.VALIDATION_ERROR,
+        ApiResponseCode.BAD_REQUEST,
+        "error"
+      );
+    }
+
+    const { email } = req.body;
+
+    // Find the user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return errorApiResponse(
+        res,
+        "User not found",
+        "User not found",
+        ApiResponseCode.NOT_FOUND,
+        "error"
+      );
+    }
+
+    // Generate reset token
+    const resetToken = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Update user's reset token and expiry
+    user.reset_password_token = resetToken;
+    user.reset_password_token_expires = new Date(Date.now() + 15 * 60 * 1000); // Token valid for 15 minutes
+    await user.save();
+
+    // Send reset password email
+    transporter.sendMail(
+      mailOption(
+        user.email,
+        "Reset Your Password",
+        emailTemplates.resetPasswordEmail.replace("{{code}}", resetToken)
+      )
+    );
+
+    // Return success response
+    return successApiResponse(
+      res,
+      "Password reset instructions sent to your email",
+      { email: user.email },
+      ApiResponseCode.OK,
+      "info"
+    );
+  } catch (error) {
+    logger.error("Error in requestPasswordReset:", error);
+    return errorApiResponse(
+      res,
+      "Internal Server Error",
+      error instanceof Error ? error.message : "Unknown error occurred",
+      ApiResponseCode.INTERNAL_ERROR,
+      "error"
+    );
+  }
+};
+
+/**
+ * Controller function for resetting password using the reset token
+ */
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorApiResponse(
+        res,
+        "Validation Error",
+        errMessage.VALIDATION_ERROR,
+        ApiResponseCode.BAD_REQUEST,
+        "error"
+      );
+    }
+
+    const { token, new_password } = req.body;
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      reset_password_token: token,
+      reset_password_token_expires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return errorApiResponse(
+        res,
+        "Invalid or expired reset token",
+        "Reset token is invalid or has expired",
+        ApiResponseCode.BAD_REQUEST,
+        "error"
+      );
+    }
+
+    // Hash the new password
+    const hashedPassword = await argon2.hash(new_password);
+
+    // Update user's password and clear reset token
+    user.password = hashedPassword;
+    user.reset_password_token = undefined;
+    user.reset_password_token_expires = undefined;
+    await user.save();
+
+    // Return success response
+    return successApiResponse(
+      res,
+      "Password reset successfully",
+      { email: user.email },
+      ApiResponseCode.OK,
+      "info"
+    );
+  } catch (error) {
+    logger.error("Error in resetPassword:", error);
     return errorApiResponse(
       res,
       "Internal Server Error",

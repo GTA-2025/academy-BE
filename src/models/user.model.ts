@@ -1,6 +1,7 @@
 import { Schema, model } from "mongoose";
 import { UserRole } from "../types/user.types";
 import { level } from "winston";
+import { required } from "joi";
 
 export interface UserI {
   first_name: string;
@@ -11,6 +12,7 @@ export interface UserI {
   password: string;
   role?: UserRole;
   full_name?: string; // Virtual field
+  agree_terms: boolean;
 }
 const userSchema = new Schema(
   {
@@ -20,6 +22,10 @@ const userSchema = new Schema(
     country: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    agree_terms: {
+      type: Boolean,
+      required: true,
+    },
     role: {
       type: String,
       enum: Object.values(UserRole),

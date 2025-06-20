@@ -13,6 +13,7 @@ const PORT: number = +(process.env.PORT ?? 4040);
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ limit: 500 }));
+
 app.use(cookieParser());
 app.use(
   cors({

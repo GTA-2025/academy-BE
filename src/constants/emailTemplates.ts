@@ -127,4 +127,73 @@ export const emailTemplates = {
     </body>
     </html>
   `,
+  resetPasswordEmail: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your Password</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f4;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #ffffff;
+        }
+        .header {
+          text-align: center;
+          padding: 20px 0;
+          background-color: #007bff;
+          color: white;
+        }
+        .content {
+          padding: 20px;
+          color: #333333;
+        }
+        .verification-code {
+          font-size: 24px;
+          font-weight: bold;
+          text-align: center;
+          padding: 20px;
+          background-color: #f8f9fa;
+          border-radius: 5px;
+          margin: 20px 0;
+          letter-spacing: 2px;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          font-size: 12px;
+          color: #666666;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Reset Your Password</h1>
+        </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>We received a request to reset your password. Please use the following code to reset your password:</p>
+          <div class="verification-code">{{code}}</div>
+          <p>This code will expire in 15 minutes.</p>
+          <p>If you didn't request a password reset, you can safely ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>This is an automated message, please do not reply to this email.</p>
+          <p>&copy; 2024 GTA Academy. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
 };
