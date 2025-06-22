@@ -34,7 +34,7 @@ export const validateRequestPasswordReset = [
 ];
 
 export const validateResetPassword = [
-  body("token").notEmpty().withMessage("Reset token is required"),
+  body("otp").notEmpty().withMessage("Reset token is required"),
   body("new_password")
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters long")

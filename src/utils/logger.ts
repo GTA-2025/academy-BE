@@ -1,7 +1,7 @@
 import "dotenv/config";
 import path from "path";
 import { createLogger, format, transports } from "winston";
-import { existsSync, mkdirSync } from "fs";
+import DailyRotateFile from "winston-daily-rotate-file";
 import winston from "winston";
 
 const { combine, timestamp } = format;
@@ -42,67 +42,89 @@ const colors: { [key: string]: string } = {
 
 winston.addColors(colors);
 
-const logDir = path.join(__dirname, "..", "..", "logs");
-if (!existsSync(logDir)) {
-  mkdirSync(logDir);
-}
-
-const fileFormat = winston.format.combine(
-  winston.format.timestamp({
-    format: "YYYY-MM-DD HH:mm:ss",
-  }),
-
-  winston.format.errors({
-    stack: true,
-  }),
-
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    const metaString =
-      Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
-    return `${timestamp} [${level}]: ${message}${metaString}`;
+const logFormat = winston.format.combine(
+  winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+  winston.format.errors({ stack: true }),
+  winston.format.splat(),
+  winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+    let msg = `${timestamp} [${level}]: ${message} `;
+    const metaString = Object.keys(metadata).length
+      ? JSON.stringify(metadata)
+      : "";
+    return msg + metaString;
   })
 );
 
+// Create the logs directory if it doesn't exist
+const logDir = path.join(process.cwd(), "logs");
+// if (!existsSync(logDir)) {
+//   mkdirSync(logDir);
+// }
+
 const logger = createLogger({
   levels: levels,
-  level: "debug", // Changed from http to debug to capture all levels
-  format: combine(
-    timestamp({
-      format: "YYYY-MM-DD HH:mm:ss",
-    }),
-    format.printf(({ level, message, timestamp }) => {
-      return `${timestamp} ${level}: ${message}`;
-    })
-  ),
-
+  format: logFormat,
   transports: [
+    // Console Transport
     new transports.Console({
+      format: combine(format.colorize({ all: true }), logFormat),
       level: "debug",
-      format: combine(format.colorize({ all: true }), fileFormat),
     }),
 
-    new transports.File({
-      filename: path.join(logDir, "combine.log"),
-      format: fileFormat,
+    // Combined logs with daily rotation
+    new DailyRotateFile({
+      filename: path.join(logDir, "combined-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
+      maxSize: "20m",
+      maxFiles: "30d",
+      format: logFormat,
+      level: "debug",
     }),
 
-    new transports.File({
+    // HTTP logs with daily rotation
+    new DailyRotateFile({
+      filename: path.join(logDir, "http-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
+      maxSize: "20m",
+      maxFiles: "30d",
       level: "http",
-      filename: path.join(logDir, "http.log"),
       format: combine(
-        fileFormat,
+        logFormat,
         winston.format(info => {
           return info.level === "http" ? info : false;
         })()
       ),
     }),
 
-    new transports.File({
+    // Error logs with daily rotation
+    new DailyRotateFile({
+      filename: path.join(logDir, "error-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
+      maxSize: "20m",
+      maxFiles: "30d",
       level: "error",
-      filename: path.join(logDir, "error.log"),
-      format: fileFormat,
+      format: logFormat,
     }),
   ],
+  exceptionHandlers: [
+    new DailyRotateFile({
+      filename: path.join(logDir, "exceptions-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
+      maxSize: "20m",
+      maxFiles: "30d",
+      format: logFormat,
+    }),
+  ],
+  rejectionHandlers: [
+    new DailyRotateFile({
+      filename: path.join(logDir, "rejections-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
+      maxSize: "20m",
+      maxFiles: "30d",
+      format: logFormat,
+    }),
+  ],
+  exitOnError: false,
 });
 
 export { logger };

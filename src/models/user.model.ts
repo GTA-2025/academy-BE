@@ -1,7 +1,5 @@
 import { Schema, model } from "mongoose";
-import { UserRole } from "../types/user.types";
-import { level } from "winston";
-import { required } from "joi";
+import { UserRole, OnboardingStatus } from "../types/user.types";
 
 export interface UserI {
   first_name: string;
@@ -31,8 +29,17 @@ const userSchema = new Schema(
       enum: Object.values(UserRole),
       default: UserRole.STUDENT,
     },
+    onboarded: { type: Boolean, default: false },
+    onboardingStatus: {
+      type: String,
+      enum: Object.values(OnboardingStatus),
+      default: OnboardingStatus.NOT_STARTED,
+    },
     profile: {
       bio: { type: String, default: "" },
+      user_name: { type: String, default: "" },
+      website: { type: String, default: "" },
+      profile_image: { type: String, default: "" },
       avatar: { type: String, default: "" },
       level: {
         type: String,

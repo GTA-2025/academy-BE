@@ -389,11 +389,11 @@ export const resetPassword = async (req: Request, res: Response) => {
       );
     }
 
-    const { token, new_password } = req.body;
+    const { otp, new_password } = req.body;
 
     // Find user with valid reset token
     const user = await User.findOne({
-      reset_password_token: token,
+      reset_password_token: otp,
       reset_password_token_expires: { $gt: new Date() },
     });
 
